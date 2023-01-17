@@ -1,0 +1,119 @@
+//https://stackoverflow.com/questions/60268662/there-are-100-promises-in-an-array-and-we-need-to-process-5-at-a-time-in-js-how
+//https://stackoverflow.com/users/816620/jfriend00
+//https://stackoverflow.com/questions/59976352/properly-batch-nested-promises-in-node/59976509#59976509
+//https://stackoverflow.com/questions/48842555/loop-through-an-api-get-request-with-variable-url/48844820#48844820
+//https://stackoverflow.com/questions/33378923/make-several-requests-to-an-api-that-can-only-handle-20-request-a-minute/33379149#33379149
+//http://jsfiddle.net/jfriend00/v98735uu/
+//https://stackoverflow.com/questions/41292316/how-do-i-await-multiple-promises-in-parallel-without-fail-fast-behavior
+//https://stackoverflow.com/questions/31424561/wait-until-all-promises-complete-even-if-some-rejected
+
+const arrayItems = [2000, 3000, 1000, 4000, 5000, 6000, 7000, 8000, 9000]
+
+const promiseMap = (promisesArray, promiseRequest, limit) => {
+  return new Promise((resolve, reject) => {
+    let index = 0,
+      count = 0,
+      stop = false,
+      results = []
+
+    const run = () => {
+      while (!stop && index < promisesArray.length && count < limit) {
+        const doNext = (i) => {
+          ++count
+          ++index
+
+          const promiseRequestThenCb = (nextRequestItem) => {
+            
+            results[i] = nextRequestItem
+            --count
+           
+            // see if we are done or should run more requests
+            if (count === 0 && index === promisesArray.length) {
+              resolve(results)
+            } else {
+              run()
+            }
+          }
+          const promiseRequestCatchCb = (err) => {
+            // set stop flag so no more requests will be sent
+            stop = true
+            --count
+           
+            reject(err)
+          }
+          promiseRequest(promisesArray[i])
+            .then(promiseRequestThenCb)
+            .catch(promiseRequestCatchCb)
+        }
+        doNext(index)
+      }
+    }
+    run()
+  })
+}
+
+// process data in a random amount of time, return a promise
+let requestsCounter = 0
+
+const randomPromise = (requestItem) => {
+  ++requestsCounter
+  console.log("sending request " + requestsCounter)
+
+  return new Promise((resolve) => {
+    // select random time 0-7999 ms
+    let ms = Math.floor(Math.random() * 8000)
+    setTimeout(() => {
+      resolve(requestItem)
+    }, ms)
+  })
+}
+
+
+promiseMap(arrayItems, randomPromise, 4).then((results) => {
+  console.log("results: ", results)
+})
+
+//-------------------------------------------------------------
+
+// const arrayItems = [2000, 3000, 1000, 4000, 5000, 6000, 7000, 8000, 9000]
+
+// const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
+
+// const promiseRequest = (el) =>
+//   sleep(el).then(() => {
+//     return el
+//   })
+
+// const PromisesWithLimit = (promisesArr, promiseRequest, limit) => {
+//   return new Promise((resolve, reject) => {
+//     let result = []
+//     let count = 0
+//     let index = 0
+
+//     newFn = () => {
+//       if (index === promisesArr.length || count >= limit) {
+//         if (count === 0) {
+//           resolve(result)
+//         }
+//         return
+//       }
+
+//       let nextPromise = promisesArr[index]
+//       console.log("promise", nextPromise)
+
+//       count++
+
+//       promiseRequest(nextPromise).then(doNext(index++)).catch(reject)
+
+//       newFn()
+//     }
+//     const doNext = (index) => (res) => {
+//       result[index] = res
+//       count--
+
+//       newFn()
+//     }
+//     newFn()
+//   })
+// }
+// PromisesWithLimit(arrayItems, promiseRequest, 4).then(console.log)
